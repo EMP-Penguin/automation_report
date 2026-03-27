@@ -1,0 +1,25 @@
+{
+  "name": "automation_report",
+  "version": "1.0.0",
+  "description": "EMR 또는 학생 필기를 바탕으로 자동 참관보고서를 생성하는 Next.js 앱",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "nextjs",
+    "openai",
+    "emr",
+    "report-generator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "next": "^16.2.1",
+    "openai": "^6.33.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
