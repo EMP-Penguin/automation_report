@@ -1,0 +1,12 @@
+
+> automation_report@1.0.0 dev
+> next dev
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.56.1:3000
+- Environments: .env.local
+✓ Ready in 1095ms
+
+○ Compiling / ...
+ GET / 200 in 5.4s (next.js: 4.9s, application-code: 529ms)

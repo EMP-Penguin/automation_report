@@ -1,51 +1,11 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import {
-  REPORT_TEMPLATES,
-  REPORT_TYPES,
-  isReportType,
-  type ReportType,
-} from "@/lib/report-config";
-
-const apiKey = process.env.OPENAI_API_KEY;
-
-const openai = apiKey ? new OpenAI({ apiKey }) : null;
-
-function buildPrompt(reportType: ReportType, inputText: string) {
-  const selectedTemplate = REPORT_TEMPLATES[reportType];
-  const allTypes = REPORT_TYPES.join(", ");
-
-  return `당신은 의료/임상 참관보고서를 정리하는 조교입니다.
-
-목표:
-- 아래 입력된 의무기록 또는 학생 필기를 바탕으로 "${reportType}"를 한국어로 작성합니다.
-- 사실 관계는 입력 내용에 기반해야 하며, 없는 내용은 단정하지 말고 필요한 경우 "기록상 확인되지 않음"처럼 표기합니다.
-- 문장은 자연스럽고 공식적인 보고서 문체로 작성합니다.
-- 민감정보는 입력에 없는 경우 임의로 추가하지 않습니다.
-
-가능한 보고서 종류: ${allTypes}
-
-선택된 보고서 유형 작성 가이드:
-${selectedTemplate.guidance}
-
-반드시 아래 양식 구조를 따르되, 입력 내용에 맞게 항목명을 조금 다듬어도 됩니다.
-${selectedTemplate.template}
-
-입력 원문:
-"""
-${inputText}
-"""`;
-}
+import { getOpenAIClient, getOpenAIModel } from "@/lib/openai";
+import { getPromptByReportType } from "@/lib/prompts";
+import { formatReport } from "@/lib/reportFormatter";
+import { isReportType } from "@/lib/report-config";
 
 export async function POST(request: Request) {
   try {
-    if (!openai) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY 환경변수가 설정되지 않았습니다." },
-        { status: 500 },
-      );
-    }
-
     const body = (await request.json()) as {
       reportType?: string;
       inputText?: string;
@@ -56,27 +16,28 @@ export async function POST(request: Request) {
 
     if (!isReportType(reportType)) {
       return NextResponse.json(
-        { error: "유효한 보고서 종류를 선택하세요." },
+        { error: "유효한 보고서 종류를 선택해야 함" },
         { status: 400 },
       );
     }
 
     if (!inputText) {
       return NextResponse.json(
-        { error: "입력 텍스트를 작성하세요." },
+        { error: "의무기록 또는 필기를 입력해야 함" },
         { status: 400 },
       );
     }
 
-    const response = await openai.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5-mini",
+    const client = getOpenAIClient();
+    const response = await client.responses.create({
+      model: getOpenAIModel(),
       input: [
         {
           role: "system",
           content: [
             {
               type: "input_text",
-              text: "당신은 의료 교육 현장의 참관보고서를 정확하고 구조적으로 작성하는 한국어 전문 작성 도우미입니다.",
+              text: "너는 형식 고정형 의학 참관보고서 작성기임. 지정된 항목만 출력하고 설명은 금지됨.",
             },
           ],
         },
@@ -85,23 +46,25 @@ export async function POST(request: Request) {
           content: [
             {
               type: "input_text",
-              text: buildPrompt(reportType, inputText),
+              text: getPromptByReportType(reportType, inputText),
             },
           ],
         },
       ],
     });
 
-    const outputText = response.output_text?.trim();
+    const rawReport = response.output_text?.trim();
 
-    if (!outputText) {
+    if (!rawReport) {
       return NextResponse.json(
-        { error: "보고서 생성 결과가 비어 있습니다." },
+        { error: "보고서 생성 결과가 비어 있음" },
         { status: 502 },
       );
     }
 
-    return NextResponse.json({ report: outputText });
+    const formattedReport = formatReport(reportType, rawReport);
+
+    return NextResponse.json({ report: formattedReport });
   } catch (error) {
     console.error("generate-report error", error);
 
@@ -110,7 +73,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "보고서 생성 중 알 수 없는 오류가 발생했습니다.",
+            : "보고서 생성 중 알 수 없는 오류가 발생했음",
       },
       { status: 500 },
     );
