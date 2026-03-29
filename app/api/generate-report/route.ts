@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOpenAIClient, getOpenAIModel } from "@/lib/openai";
+import { getGeminiClient, getGeminiModel } from "@/lib/gemini";
 import { getPromptByReportType } from "@/lib/prompts";
 import { formatReport } from "@/lib/reportFormatter";
 import { isReportType } from "@/lib/report-config";
@@ -28,32 +28,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = getOpenAIClient();
-    const response = await client.responses.create({
-      model: getOpenAIModel(),
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: "너는 형식 고정형 의학 참관보고서 작성기임. 지정된 항목만 출력하고 설명은 금지됨.",
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: getPromptByReportType(reportType, inputText),
-            },
-          ],
-        },
-      ],
+    const client = getGeminiClient();
+    const response = await client.models.generateContent({
+      model: getGeminiModel(),
+      contents: getPromptByReportType(reportType, inputText),
     });
 
-    const rawReport = response.output_text?.trim();
+    const rawReport = response.text?.trim();
 
     if (!rawReport) {
       return NextResponse.json(
