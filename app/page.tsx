@@ -10,6 +10,7 @@ import { type ReportType } from "@/lib/report-config";
 type ApiResponse = {
   report?: string;
   error?: string;
+  missingItems?: string[];
 };
 
 export default function HomePage() {
@@ -21,24 +22,28 @@ export default function HomePage() {
   const [inputText, setInputText] = useState("");
   const [generatedReport, setGeneratedReport] = useState("");
   const [error, setError] = useState("");
+  const [missingItems, setMissingItems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function handleGenerateReport() {
     if (!selectedReportType) {
       setError("보고서 종류를 먼저 선택해야 함");
+      setMissingItems([]);
       setGeneratedReport("");
       return;
     }
 
     if (!inputText.trim()) {
       setError("의무기록 또는 필기를 입력해야 함");
+      setMissingItems([]);
       setGeneratedReport("");
       return;
     }
 
     setIsLoading(true);
     setError("");
+    setMissingItems([]);
     setGeneratedReport("");
     setCopied(false);
 
@@ -57,9 +62,11 @@ export default function HomePage() {
       const data = (await response.json()) as ApiResponse;
 
       if (!response.ok) {
+        setMissingItems(data.missingItems || []);
         throw new Error(data.error || "보고서 생성에 실패했음");
       }
 
+      setMissingItems([]);
       setGeneratedReport(data.report || "");
     } catch (requestError) {
       setError(
@@ -134,6 +141,7 @@ export default function HomePage() {
             <OutputCard
               report={generatedReport}
               error={error}
+              missingItems={missingItems}
               isLoading={isLoading}
               copied={copied}
               onCopy={handleCopy}

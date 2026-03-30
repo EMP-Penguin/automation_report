@@ -4,6 +4,7 @@ import { LoadingState } from "@/components/LoadingState";
 type OutputCardProps = {
   report: string;
   error: string;
+  missingItems: string[];
   isLoading: boolean;
   copied: boolean;
   onCopy: () => void;
@@ -12,6 +13,7 @@ type OutputCardProps = {
 export function OutputCard({
   report,
   error,
+  missingItems,
   isLoading,
   copied,
   onCopy,
@@ -36,6 +38,16 @@ export function OutputCard({
 
       {isLoading ? <LoadingState /> : null}
       {!isLoading && error ? <ErrorState message={error} /> : null}
+      {!isLoading && error && missingItems.length > 0 ? (
+        <div className="missing-info-card">
+          <p className="missing-info-title">부족한 정보</p>
+          <ul className="missing-info-list">
+            {missingItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {!isLoading && !error && report ? (
         <article className="report-card">
           <pre>{report}</pre>

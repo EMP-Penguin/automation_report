@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getGeminiClient, getGeminiModel } from "@/lib/gemini";
 import { getMasterSystemPrompt } from "@/lib/masterPrompt";
+import { validateReportInput } from "@/lib/inputValidation";
 import { getPromptByReportType } from "@/lib/prompts";
 import { formatReport } from "@/lib/reportFormatter";
 import { isReportType } from "@/lib/report-config";
@@ -26,6 +27,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "의무기록 또는 필기를 입력해야 함" },
         { status: 400 },
+      );
+    }
+
+    const validation = validateReportInput(reportType, inputText);
+
+    if (!validation.isValid) {
+      return NextResponse.json(
+        {
+          error: "정보가 충분하지 않습니다!",
+          missingItems: validation.missingItems,
+        },
+        { status: 422 },
       );
     }
 
