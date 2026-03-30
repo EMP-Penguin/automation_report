@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getGeminiClient, getGeminiModel } from "@/lib/gemini";
+import { getMasterSystemPrompt } from "@/lib/masterPrompt";
 import { getPromptByReportType } from "@/lib/prompts";
 import { formatReport } from "@/lib/reportFormatter";
 import { isReportType } from "@/lib/report-config";
@@ -28,10 +29,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = getGeminiClient();
+    const [client, systemInstruction] = await Promise.all([
+      Promise.resolve(getGeminiClient()),
+      getMasterSystemPrompt(),
+    ]);
+
     const response = await client.models.generateContent({
       model: getGeminiModel(),
       contents: getPromptByReportType(reportType, inputText),
+      config: {
+        systemInstruction,
+        responseMimeType: "text/plain",
+      },
     });
 
     const rawReport = response.text?.trim();

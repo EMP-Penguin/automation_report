@@ -18,6 +18,13 @@ const REQUIRED_FIELDS: Record<ReportType, string[]> = {
   ],
 };
 
+const STYLE_OPTIONAL_FIELDS = new Set([
+  "환자 정보",
+  "환자 정보 (이름, 나이, 진단명, 수술명)",
+  "진단명",
+  "감별진단",
+]);
+
 function stripNoise(text: string) {
   return text
     .replace(/```[\s\S]*?```/g, "")
@@ -47,8 +54,7 @@ function extractSections(text: string, reportType: ReportType) {
       const matched = prefixes.find((prefix) => line.startsWith(prefix));
 
       if (matched) {
-        const value = line.slice(matched.length).trim();
-        map.set(field, value || "없음");
+        map.set(field, line.slice(matched.length).trim() || "없음");
       }
     }
   }
@@ -56,22 +62,50 @@ function extractSections(text: string, reportType: ReportType) {
   return map;
 }
 
-function ensureSentenceStyle(value: string) {
-  const normalized = value.trim().replace(/[.。]+$/g, "");
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function normalizePatientInfo(value: string) {
+  return normalizeWhitespace(value).replace(/\s*임$/, "").trim() || "없음";
+}
+
+function normalizeNarrativeEnding(value: string) {
+  const normalized = normalizeWhitespace(value).replace(/[.。]+$/g, "");
 
   if (!normalized || normalized === "없음") {
     return "없음";
   }
 
-  if (/(음|ㅁ|임)$/.test(normalized)) {
+  if (/(함|음|됨|있음|없음)$/.test(normalized)) {
     return normalized;
   }
 
-  if (/[가-힣]다$/.test(normalized)) {
-    return normalized.replace(/다$/, "음");
+  if (/임$/.test(normalized)) {
+    return normalized.replace(/임$/, "함");
   }
 
-  return `${normalized}임`;
+  if (/다$/.test(normalized)) {
+    return normalized.replace(/다$/, "함");
+  }
+
+  return normalized;
+}
+
+function normalizeFieldValue(field: string, value: string) {
+  if (!value.trim()) {
+    return "없음";
+  }
+
+  if (field.startsWith("환자 정보")) {
+    return normalizePatientInfo(value);
+  }
+
+  if (STYLE_OPTIONAL_FIELDS.has(field)) {
+    return normalizeWhitespace(value);
+  }
+
+  return normalizeNarrativeEnding(value);
 }
 
 function ensureDifferentialCount(value: string) {
@@ -81,7 +115,7 @@ function ensureDifferentialCount(value: string) {
 
   const parts = value
     .split(/[;,]/)
-    .map((item) => item.trim())
+    .map((item) => item.trim().replace(/\s*임$/, ""))
     .filter(Boolean);
 
   if (parts.length >= 2) {
@@ -106,8 +140,7 @@ export function formatReport(reportType: ReportType, rawText: string) {
   const fields = REQUIRED_FIELDS[reportType];
 
   const lines = fields.map((field) => {
-    let value = sections.get(field) || "없음";
-    value = ensureSentenceStyle(value);
+    let value = normalizeFieldValue(field, sections.get(field) || "없음");
 
     if (field === "감별진단") {
       value = ensureDifferentialCount(value);
