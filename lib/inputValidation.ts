@@ -9,71 +9,121 @@ type ValidationResult =
       missingItems: string[];
     };
 
+type SignalGroup = {
+  label: string;
+  patterns: RegExp[];
+};
+
 const LOW_SIGNAL_PATTERNS = [
   /힘들/,
   /피곤/,
   /졸리/,
   /배고프/,
-  /싫/,
   /짜증/,
   /ㅠ|ㅜ/,
   /ㅋㅋ|ㅎㅎ/,
+  /놀고 싶/,
 ];
 
 const COMMON_MEDICAL_PATTERNS = [
-  /환자/,
-  /진단/,
-  /증상/,
-  /검사/,
-  /혈액/,
-  /수술/,
-  /시술/,
-  /외래/,
-  /회진/,
-  /통증/,
-  /발열/,
-  /오심/,
-  /구토/,
-  /복통/,
-  /입원/,
-  /과거력/,
-  /병력/,
-  /소견/,
-  /처방/,
+  /fever/i,
+  /pneumonia/i,
+  /uti/i,
+  /pyuria/i,
+  /foley/i,
+  /cx\b/i,
   /ct\b/i,
   /mri\b/i,
-  /cbc\b/i,
-  /wbc\b/i,
-  /crp\b/i,
+  /wbc/i,
+  /crp/i,
+  /meropenem/i,
+  /esbl/i,
+  /증상/,
+  /진단/,
+  /검사/,
+  /소견/,
+  /수술/,
+  /시술/,
+  /회진/,
+  /외래/,
+  /발열/,
+  /통증/,
+  /복통/,
+  /오심/,
+  /구토/,
+  /과거력/,
+  /병력/,
+  /치료/,
+  /항생제/,
 ];
 
-const REQUIRED_HINTS: Record<ReportType, Array<{ label: string; patterns: RegExp[] }>> = {
+const SIGNALS: Record<ReportType, SignalGroup[]> = {
   "병동 회진 참관 보고서": [
-    { label: "환자 정보", patterns: [/환자/, /\b[MF]\/\d{1,3}\b/i, /남\/\d{1,3}/, /여\/\d{1,3}/] },
-    { label: "진단명 또는 주진단 정보", patterns: [/진단/, /주진단/, /의증/, /diagnosis/i] },
-    { label: "증상 또는 신체검진 소견", patterns: [/증상/, /통증/, /발열/, /오심/, /구토/, /압통/, /반발압통/, /호흡곤란/, /부종/, /청진/] },
-    { label: "검사 결과 또는 혈액검사 소견", patterns: [/검사/, /혈액/, /wbc/i, /crp/i, /esr/i, /ast/i, /alt/i, /수치/, /\d+\s*\/?\s*(u?l|mg\/dl|mmhg|bpm)/i] },
+    {
+      label: "진단명 또는 문제 목록",
+      patterns: [/진단/, /주진단/, /의증/, /pneumonia/i, /uti/i, /sepsis/i],
+    },
+    {
+      label: "증상 또는 병력",
+      patterns: [/증상/, /발열/, /통증/, /복통/, /오심/, /구토/, /기침/, /호흡곤란/, /fever/i, /history/i, /recurrent/i, /병력/, /foley/i],
+    },
+    {
+      label: "검사/영상/배양 소견",
+      patterns: [/검사/, /소견/, /ct\b/i, /mri\b/i, /u\/a/i, /pyuria/i, /culture/i, /cx\b/i, /wbc/i, /crp/i, /영상/],
+    },
+    {
+      label: "치료 또는 계획",
+      patterns: [/치료/, /항생제/, /변경/, /meropenem/i, /d\/c/i, /plan/i],
+    },
   ],
   "외래 참관 보고서": [
-    { label: "환자 정보", patterns: [/환자/, /\b[MF]\/\d{1,3}\b/i, /남\/\d{1,3}/, /여\/\d{1,3}/] },
-    { label: "진단명 또는 주진단 정보", patterns: [/진단/, /주진단/, /의증/, /diagnosis/i] },
-    { label: "증상 또는 신체검진 소견", patterns: [/증상/, /통증/, /발열/, /기침/, /콧물/, /호흡곤란/, /진찰/, /소견/, /압통/, /무증상/, /risk factor/i, /history/i] },
+    {
+      label: "진단명 또는 문제 목록",
+      patterns: [/진단/, /주진단/, /의증/, /diagnosis/i],
+    },
+    {
+      label: "증상 또는 병력",
+      patterns: [/증상/, /통증/, /기침/, /콧물/, /호흡곤란/, /발열/, /history/i, /risk factor/i, /과거력/, /병력/, /무증상/],
+    },
+    {
+      label: "진찰/검사 소견",
+      patterns: [/소견/, /진찰/, /검사/, /ct\b/i, /mri\b/i, /x-ray/i, /수치/, /lab/i],
+    },
   ],
   "시술/검사 참관 보고서": [
-    { label: "환자 정보", patterns: [/환자/, /\b[MF]\/\d{1,3}\b/i, /남\/\d{1,3}/, /여\/\d{1,3}/] },
-    { label: "시술/검사명", patterns: [/시술/, /검사/, /내시경/, /초음파/, /biopsy/i, /aspiration/i, /injection/i] },
-    { label: "적응증 관련 정보", patterns: [/적응증/, /시행 이유/, /목적/, /의뢰/, /평가/] },
+    {
+      label: "시술/검사명",
+      patterns: [/시술/, /검사/, /내시경/, /초음파/, /biopsy/i, /aspiration/i, /injection/i],
+    },
+    {
+      label: "시행 이유 또는 적응증",
+      patterns: [/적응증/, /시행 이유/, /목적/, /의뢰/, /평가/, /증상/, /진단/],
+    },
+    {
+      label: "관련 소견 또는 결과",
+      patterns: [/소견/, /결과/, /검사/, /영상/, /lab/i, /findings?/i],
+    },
   ],
   "수술 참관 보고서": [
-    { label: "환자 정보", patterns: [/환자/, /\b[MF]\/\d{1,3}\b/i, /남\/\d{1,3}/, /여\/\d{1,3}/, /이름/] },
-    { label: "진단명", patterns: [/진단/, /암/, /염/, /골절/, /종양/, /질환/] },
-    { label: "수술명", patterns: [/수술/, /절제/, /봉합/, /복강경/, /mastectomy/i, /ectomy/i] },
-    { label: "수술 과정 또는 교수 설명", patterns: [/교수/, /설명/, /질의응답/, /수술실/, /과정/, /주의사항/] },
+    {
+      label: "진단명 또는 수술명",
+      patterns: [/진단/, /수술/, /ectomy/i, /mastectomy/i, /절제/, /봉합/, /복강경/],
+    },
+    {
+      label: "수술 목적 또는 주의사항",
+      patterns: [/목적/, /주의사항/, /적응증/, /위험/, /합병증/, /계획/],
+    },
+    {
+      label: "수술 과정 또는 교수 설명",
+      patterns: [/교수/, /설명/, /질의응답/, /수술실/, /과정/],
+    },
   ],
 };
 
-function hasAnyPattern(text: string, patterns: RegExp[]) {
-  return patterns.some((pattern) => pattern.test(text));
+function countHits(text: string, groups: SignalGroup[]) {
+  return groups.filter((group) =>
+    group.patterns.some((pattern) => pattern.test(text)),
+  );
 }
 
 export function validateReportInput(
@@ -82,10 +132,10 @@ export function validateReportInput(
 ): ValidationResult {
   const normalized = inputText.trim();
 
-  if (normalized.length < 15) {
+  if (normalized.length < 12) {
     return {
       isValid: false,
-      missingItems: ["입력 분량이 너무 짧음", ...REQUIRED_HINTS[reportType].map((item) => item.label)],
+      missingItems: ["입력 분량이 너무 짧음"],
     };
   }
 
@@ -97,26 +147,36 @@ export function validateReportInput(
     pattern.test(normalized),
   ).length;
 
-  const missingItems = REQUIRED_HINTS[reportType]
-    .filter((item) => !hasAnyPattern(normalized, item.patterns))
-    .map((item) => item.label);
+  const hitGroups = countHits(normalized, SIGNALS[reportType]);
+  const missingItems = SIGNALS[reportType]
+    .filter((group) => !hitGroups.some((hit) => hit.label === group.label))
+    .map((group) => group.label);
 
-  if (medicalSignalHitCount === 0 || lowSignalHitCount >= 2) {
+  if (medicalSignalHitCount === 0 || (lowSignalHitCount >= 2 && hitGroups.length === 0)) {
     return {
       isValid: false,
       missingItems:
         missingItems.length > 0
           ? missingItems
-          : ["의료적 맥락이 있는 환자 정보 또는 검사/진단 정보"],
+          : ["의료적 맥락이 있는 진단, 증상, 검사, 치료 정보"],
     };
   }
 
-  if (missingItems.length >= 2) {
-    return {
-      isValid: false,
-      missingItems,
-    };
+  if (reportType === "병동 회진 참관 보고서" || reportType === "외래 참관 보고서") {
+    const hasDiagnosisLike = hitGroups.some((group) => group.label === "진단명 또는 문제 목록");
+    const hasSupportLike = hitGroups.some((group) =>
+      ["증상 또는 병력", "검사/영상/배양 소견", "진찰/검사 소견", "치료 또는 계획"].includes(group.label),
+    );
+
+    if (hasDiagnosisLike && hasSupportLike) {
+      return { isValid: true };
+    }
+  } else if (hitGroups.length >= 2) {
+    return { isValid: true };
   }
 
-  return { isValid: true };
+  return {
+    isValid: false,
+    missingItems: missingItems.length > 0 ? missingItems : ["추가 임상 정보"],
+  };
 }
